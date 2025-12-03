@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ExternalLink, Power, RefreshCw, Terminal, Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useState } from "react";
 import { motion } from "framer-motion";
 
@@ -19,7 +20,7 @@ export function DashboardCard({ app }: DashboardCardProps) {
     setIsLoading(true);
     const currentStatus = type === 'frontend' ? localApp.frontendStatus : localApp.backendStatus;
     const newStatus: ServiceStatus = currentStatus === 'online' ? 'offline' : 'starting';
-    
+
     // Immediate update to "starting" or "offline"
     setLocalApp(prev => ({
       ...prev,
@@ -40,8 +41,36 @@ export function DashboardCard({ app }: DashboardCardProps) {
     }
   };
 
-  const handleLaunch = () => {
-    window.open(app.url, '_blank');
+  const handleLaunch = async () => {
+    try {
+      setIsLoading(true);
+      const res = await apiRequest("POST", `/api/dashboards/${app.id}/launch`);
+      let target = app.url;
+      try {
+        const payload = await res.json();
+        if (payload && typeof payload.url === "string" && payload.url.length > 0) {
+          target = payload.url;
+        }
+      } catch { }
+      queryClient.invalidateQueries({ queryKey: ["/api", "dashboards"] });
+      window.open(target, "_blank");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleOpen = async () => {
+    let target = app.url;
+    try {
+      const res = await fetch(`/api/dashboards/${app.id}`, { credentials: "include" });
+      if (res.ok) {
+        const payload = await res.json();
+        if (payload && typeof payload.url === "string" && payload.url.length > 0) {
+          target = payload.url;
+        }
+      }
+    } catch { }
+    window.open(target, "_blank");
   };
 
   return (
@@ -74,9 +103,9 @@ export function DashboardCard({ app }: DashboardCardProps) {
             </div>
             <div className="flex items-center justify-between">
               <StatusIndicator status={localApp.frontendStatus} />
-              <Button 
-                variant="ghost" 
-                size="icon" 
+              <Button
+                variant="ghost"
+                size="icon"
                 className="h-6 w-6 rounded-full hover:bg-white/10"
                 onClick={() => toggleService('frontend')}
                 disabled={isLoading}
@@ -92,9 +121,9 @@ export function DashboardCard({ app }: DashboardCardProps) {
             </div>
             <div className="flex items-center justify-between">
               <StatusIndicator status={localApp.backendStatus} />
-              <Button 
-                variant="ghost" 
-                size="icon" 
+              <Button
+                variant="ghost"
+                size="icon"
                 className="h-6 w-6 rounded-full hover:bg-white/10"
                 onClick={() => toggleService('backend')}
                 disabled={isLoading}
@@ -109,15 +138,26 @@ export function DashboardCard({ app }: DashboardCardProps) {
           <div className="text-xs font-mono text-white/30">
             Last Ping: <span className="text-white/50">{app.lastPing}</span>
           </div>
-          <Button 
-            className="group/btn relative overflow-hidden bg-white/5 hover:bg-white/10 text-white border border-white/10 hover:border-primary/50 transition-all duration-300"
-            onClick={handleLaunch}
-          >
-            <span className="relative z-10 flex items-center gap-2">
-              Launch <ExternalLink className="w-3 h-3" />
-            </span>
-            <div className="absolute inset-0 bg-primary/10 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300" />
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              className="group/btn relative overflow-hidden bg-white/5 hover:bg-white/10 text-white border border-white/10 hover:border-primary/50 transition-all duration-300"
+              onClick={handleOpen}
+            >
+              <span className="relative z-10 flex items-center gap-2">
+                Open <ExternalLink className="w-3 h-3" />
+              </span>
+              <div className="absolute inset-0 bg-primary/10 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300" />
+            </Button>
+            <Button
+              className="group/btn relative overflow-hidden bg-white/5 hover:bg-white/10 text-white border border-white/10 hover:border-primary/50 transition-all duration-300"
+              onClick={handleLaunch}
+            >
+              <span className="relative z-10 flex items-center gap-2">
+                Launch <ExternalLink className="w-3 h-3" />
+              </span>
+              <div className="absolute inset-0 bg-primary/10 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300" />
+            </Button>
+          </div>
         </div>
       </Card>
     </motion.div>

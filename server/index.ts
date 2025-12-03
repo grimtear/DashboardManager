@@ -5,6 +5,7 @@ import { createServer } from "http";
 
 const app = express();
 const httpServer = createServer(app);
+app.set("etag", false);
 
 declare module "http" {
   interface IncomingMessage {
@@ -32,6 +33,18 @@ export function log(message: string, source = "express") {
 
   console.log(`${formattedTime} [${source}] ${message}`);
 }
+
+process.on("uncaughtException", (err) => {
+  try {
+    console.error("uncaughtException:", err?.message || String(err));
+  } catch { }
+});
+
+process.on("unhandledRejection", (reason) => {
+  try {
+    console.error("unhandledRejection:", (reason as any)?.message || String(reason));
+  } catch { }
+});
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -67,7 +80,7 @@ app.use((req, res, next) => {
     const message = err.message || "Internal Server Error";
 
     res.status(status).json({ message });
-    throw err;
+    console.error(message);
   });
 
   // importantly only setup vite in development and after
@@ -81,18 +94,18 @@ app.use((req, res, next) => {
   }
 
   // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
+  // Other ports are firewalled. Default to 5004 if not specified.
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || "5000", 10);
+  const port = parseInt(process.env.PORT || "5004", 10);
+  const host = process.env.HOST_BIND || process.env.HOST || "0.0.0.0";
   httpServer.listen(
     {
       port,
-      host: "0.0.0.0",
-      reusePort: true,
+      host,
     },
     () => {
-      log(`serving on port ${port}`);
+      log(`serving on http://${host}:${port}`);
     },
   );
 })();
