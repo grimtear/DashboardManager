@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: dashboardmanager
+    env: node
+    plan: free
+    autoDeploy: true
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
